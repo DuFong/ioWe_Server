@@ -18,72 +18,125 @@ app.get('/', function(req, res) {
 
 });
 
-const totalPlayer = 4;
-var playerIndex = 0;
+const MAX_PLAYER = 2;
 
 // 방 정보
 var Room = function(){
-    this.RoomName;
-    this.PlayerNames=[]
-    this.num_player = 0;
+    this.roomName;
+    this.playerNames=[]
+    this.playerCounts = 0;
 }
 
 // RoomList 정의 및 method 생성
 var RoomList = function(){
-    this.Rooms = []
+    this.rooms = []
     this.pos = 0;
     this.listSize = 0;
 }
-RoomList.prototype.create_room = function(room_name, player_name){
+RoomList.prototype.createRoom = function(roomName, playerName){
     var room = new Room();
-    room.RoomName = room_name;
-    room.PlayerNames[0] = player_name;
-    room.num_player = 1;
-    this.Rooms.push(room);
+    room.roomName = roomName;
+    room.playerNames[0] = playerName;
+    room.playerCounts = 1;
+    this.rooms.push(room);
     this.listSize++;
 }
-RoomList.prototype.add_player = function(room_name, player_name){
+RoomList.prototype.addPlayer = function(roomName, playerName){
+    var roomIndex = this.findRoom(roomName);
+
+    if(roomIndex >  -1){
+        if(this.rooms[roomIndex].playerCounts == MAX_PLAYER){
+            return 0;
+        }
+        this.rooms[roomIndex].playerNames[this.rooms[roomIndex].playerCounts] = playerName;
+        this.rooms[roomIndex].playerCounts++;
+        return true;
+    }
+    else{
+        return -1;
+    }
+}
+RoomList.prototype.removePlayer = function(roomName, playerName){
+    roonIndex = this.findRoom(roomName);
+
+    if(roomIndex > -1){
+        var playerPos = 0;
+        for(; playerPos < this.rooms[roomIndex].playerCounts; playerPos++){
+            if(this.rooms[roomIndex].playerNames[playerPos] == playerName){
+                break;
+            }
+            if(playerPos == this.rooms[roomIndex].playerCounts -1){ // Not found!
+                return -1;
+            }
+        }
+        this.rooms[roomIndex].playerNames.splice(playerPos,1);
+        this.rooms[roomIndex].playerCounts--;
+        if(this.rooms[roomIndex].playerCounts == 0){
+            this.rooms.splice(roomIndex,1);
+            this.listSize--;
+        }
+        return true;
+    }
+    else{
+        return -1;
+    }
+}
+RoomList.prototype.getNames = function(roomName){
+    var roomIndex = this.findRoom(roomName);
+
+    if(roomIndex > -1){
+        return this.rooms[roomIndex].playerNames;
+    }
+    else
+        return null;
+}
+RoomList.prototype.findRoom = function(roomName){
     var i = 0;
     for(;i<this.listSize;i++){
-        if(this.Rooms[i].RoomName == room_name){
-            this.Rooms[i].PlayerNames[this.Rooms[i].num_player] = player_name;
-            this.Rooms[i].num_player++;
+        if(this.rooms[i].roomName == roomName){
             return i;
         }
     }
     retrun -1;
 }
-
-RoomList.prototype.find_room = function(room_name){
-    var i = 0;
-    for(;i<this.listSize;i++){
-        if(this.Rooms[i].RoomName == room_name){
-            return i;
-        }
-    }
-    retrun -1;
-}
-
-RoomList.prototype.remove_room = function(room_name){
-    var removePos = this.find(room_name);
+RoomList.prototype.removeRoom = function(roomName){
+    var removePos = this.findRoom(roomName);
 
     if(removePos > -1){
-        this.Rooms.splice(removePos,1);
+        this.rooms.splice(removePos,1);
         this.listSize--;
         return true;
     }
-    return false;
+    return -1;
+}
+RoomList.prototype.stringifyRoomList = function(){
+    var RoomNames = [];
+    var Headcounts = [];
+    for(var i = 0; i < this.listSize; i++){
+        RoomNames.push(this.rooms[i].roomName);
+        Headcounts.push(this.rooms[i].playerCounts);
+    }
+    var sendingData = new Object();
+    sendingData.RoomNames = RoomNames;
+    sendingData.Headcounts = Headcounts;
+    return JSON.stringify(sendingData);
+}
+RoomList.prototype.stringifyRoomInfo = function(roomName){
+    var sendingData = new Object();
+    sendingData.RoomName = roomName;
+    sendingData.PlayerNames = this.getNames(roomName);
+    return JSON.stringify(sendingData);
 }
 RoomList.prototype.length = function(){
     return this.listSize;
 }
 RoomList.prototype.clear = function(){
-    this.Rooms = [];
+    this.rooms = [];
     this.listSize = 0;
     this.pos = 0;
 }
 
-var roomlist = new RoomList();
+var ROOM_LIST = new RoomList();
 
 port = ['9091'];
 var child = cp.fork("game_server.js", port);
@@ -92,39 +145,71 @@ io.on('connection', function(socket) {
 
     console.log("Connect");
 
-
-    socket.on('start_button', function(data) {
-        console.log('start_button ' + data);
-
-        if(data == GAME_START) {
-            socket.emit('start_button', GAME_START);
-        }
-    });
-
-
     socket.on('room_list', function(data) {
-        var RoomNames = [];
-        var Headcounts = [];
-        for(var i = 0; i < roomlist.listSize; i++){
-            RoomNames.push(roomlist.Rooms[i].RoomName);
-            Headcounts.push(roomlist.Rooms[i].num_player);
-        }
-        var sendingData = new Object();
-        sendingData.RoomNames = RoomNames;
-        sendingData.Headcounts = Headcounts;
+        // for debugging
+        console.log('in room_list');
 
-        var datas = JSON.stringify(sendingData);
+        var datas = ROOM_LIST.stringifyRoomList();
+        console.log(datas);
         socket.emit('room_list', datas);
     });
 
 
     socket.on('create_room', function(data) {
-        
+        //for debugging
+        console.log('in create_room');
+
+        ROOM_LIST.createRoom(data.RoomName, data.PlayerName);
+        socket.join(data.RoomName);
+        console.log('received  datas = ' + data);
+
+        var datas = ROOM_LIST.stringifyRoomInfo(data.RoomName);
+        console.log(datas);
+        socket.emit('room_info', datas);
     });
 
+    socket.on('enter_room', function(data){
+        //for debugging
+        console.log('in enter_room');
+
+        var flag;
+        flag = ROOM_LIST.addPlayer(data.RoomName, data.PlayerName)
+        if(flag > 0){  // flag == true
+            socket.join(data.RoomName);
+
+            var datas = ROOM_LIST.stringifyRoomInfo(data.RoomName);
+            console.log(datas);
+            socket.emit('room_info', datas);
+        }
+        else { // flag == 0 방이 가득 참 or flag ==  -1 해당 방 이름이 존재하지 않음
+            var datas = ROOM_LIST.stringifyRoomList();
+            socket.emit('fail_enter_room');
+            socket.emit('room_list', datas);
+        }
+    });
+
+    socket.on('exit_room', function(data){
+        //for debugging
+        console.log('in exit_room');
+
+        if(removePlayer(data.RoomName, data.PlayerName) > -1){
+            console.log(data.PlayerName + ' player exit ' + data.RoomName + ' room!');
+            socket.leave(data.RoomName);
+
+            // 방을 나간 플레이어에게만
+            var aroomList = ROOM_LIST.stringifyRoomList();
+            socket.emit('room_list', ROOM_LIST);
+
+            // 플레이어가 나간 방의 다른 플레이어들에게
+            var roomInfo = ROOM_LIST.stringifyRoomInfo(data.RoomName);
+            io.sockets.in(data.RoomName).emit('room_info', roomInfo);
+        }
+    });
 
     socket.on('room_info', function(data) {
-
+        var datas = ROOM_LIST.stringifyRoomInfo(data.RoomName);
+        console.log(datas);
+        socket.emit('room_info', datas);
     });
 
 

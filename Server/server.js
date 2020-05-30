@@ -18,7 +18,7 @@ app.get('/', function(req, res) {
 
 });
 
-const MAX_PLAYER = 2;
+const MAX_PLAYER = 6;
 var ROOM_KEY = 0;
 
 // 방 정보
@@ -235,6 +235,10 @@ io.on('connection', function(socket) {
         var datas = ROOM_LIST.stringifyRoomInfo(data.RoomKey);
         console.log(datas);
         socket.emit('room_info', datas);
+    });
+
+    socket.on('close_socket', function(data){
+        console.log(socket.id + "is disconnected");
     });
 
 

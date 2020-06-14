@@ -19,7 +19,7 @@ app.get('/', function(req, res) {
 });
 
 const MAX_PLAYER = 6;
-const MIN_PLAYER = 1;
+const MIN_PLAYER = 2;
 var ROOM_KEY = 1;
 var PORT = 9091;
 
@@ -294,7 +294,7 @@ io.on('connection', function(socket) {
         console.log('in disconnection');
         socket.disconnect(true);
     });
-    
+
 });
 
 server.listen(80, function() {

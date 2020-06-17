@@ -150,6 +150,7 @@ io.on('connection', function(socket) {
         var timeDiff = Date.now() - TRANSFORM_TIME_STAMP;
 
         if(!isFever && Date.now() - RUNNING_TIME_STAMP > 240000){
+            console.log('fever time !! in port' + port);
             isFever = true;
             io.emit('fever_time', " ");
             var position = new Object();
@@ -270,6 +271,7 @@ io.on('connection', function(socket) {
             }
         }
         console.log(disconnectedIndex+"player is disconnected in "+ port+' '+socket.id);
+        SCORE_BOARD[disconnectedIndex] = -1;
         CONNECTED_CLIENT_COUNT -= 1;
 
         if(CONNECTED_CLIENT_COUNT == 1){

@@ -294,7 +294,7 @@ io.on('connection', function(socket) {
         console.log('in disconnection');
         socket.disconnect(true);
     });
-
+    
 });
 
 server.listen(80, function() {
